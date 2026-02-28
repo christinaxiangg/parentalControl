@@ -211,5 +211,3 @@ class SecurityHelper {
   }
 }
 
-// Create singleton for rate limiter
-const messageRateLimiter = SecurityHelper.createRateLimiter(100, 60000);

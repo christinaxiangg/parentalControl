@@ -10,7 +10,14 @@ async function initializePopup() {
     const response = await sendMessage(message);
     
     if (!response.success) {
-      showError(content, 'Failed to load configuration');
+      console.error('Failed to load configuration:', response.error);
+      showError(content, 'Failed to load configuration: ' + (response.error || 'Unknown error'));
+      return;
+    }
+    
+    if (!response.config) {
+      console.error('No configuration returned');
+      showError(content, 'Configuration is empty');
       return;
     }
     
@@ -101,12 +108,22 @@ async function initializePopup() {
 }
 
 /**
- * Send message to background service worker
+ * Send message to background service worker with timeout
  */
 function sendMessage(message) {
   return new Promise((resolve) => {
+    // 5 second timeout to prevent hanging
+    const timeoutId = setTimeout(() => {
+      resolve({ success: false, error: 'Message timeout - extension may not be ready' });
+    }, 5000);
+    
     chrome.runtime.sendMessage(message, (response) => {
-      resolve(response || { success: false, error: 'No response' });
+      clearTimeout(timeoutId);
+      if (chrome.runtime.lastError) {
+        resolve({ success: false, error: chrome.runtime.lastError.message });
+      } else {
+        resolve(response || { success: false, error: 'No response' });
+      }
     });
   });
 }

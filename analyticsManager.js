@@ -325,6 +325,3 @@ class AnalyticsManager {
     }
   }
 }
-
-// Create singleton instance
-const analyticsManager = new AnalyticsManager();

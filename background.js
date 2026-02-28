@@ -8,28 +8,90 @@ importScripts('analyticsManager.js');
 importScripts('storageManager.js');
 importScripts('rulesEngine.js');
 
-// Initialize managers
-const storageManager = new StorageManager();
-const rulesEngine = new RulesEngine();
-const analyticsManager = new AnalyticsManager();
+// Initialize managers with error handling
+let storageManager, rulesEngine, analyticsManager, messageRateLimiter, cacheManager;
+
+try {
+  console.log('Creating CacheManager...');
+  cacheManager = new CacheManager();
+  console.log('CacheManager created');
+} catch (error) {
+  console.error('Failed to create CacheManager:', error);
+  cacheManager = null;
+}
+
+try {
+  console.log('Creating StorageManager...');
+  storageManager = new StorageManager();
+  console.log('StorageManager created');
+} catch (error) {
+  console.error('Failed to create StorageManager:', error);
+  storageManager = null;
+}
+
+try {
+  console.log('Creating RulesEngine...');
+  rulesEngine = new RulesEngine();
+  console.log('RulesEngine created');
+} catch (error) {
+  console.error('Failed to create RulesEngine:', error);
+  rulesEngine = null;
+}
+
+try {
+  console.log('Creating AnalyticsManager...');
+  analyticsManager = new AnalyticsManager();
+  console.log('AnalyticsManager created');
+} catch (error) {
+  console.error('Failed to create AnalyticsManager:', error);
+  analyticsManager = null;
+}
+
+try {
+  console.log('Creating messageRateLimiter...');
+  if (typeof SecurityHelper !== 'undefined' && SecurityHelper.createRateLimiter) {
+    messageRateLimiter = SecurityHelper.createRateLimiter(100, 60000);
+    console.log('messageRateLimiter created');
+  } else {
+    console.error('SecurityHelper not available');
+    messageRateLimiter = null;
+  }
+} catch (error) {
+  console.error('Failed to create messageRateLimiter:', error);
+  messageRateLimiter = null;
+}
+
+console.log('Background service worker initialized');
 
 // Initialize extension on install or startup
 chrome.runtime.onInstalled.addListener(async (details) => {
   try {
     if (details.reason === 'install') {
       // First install - open setup page
-      await analyticsManager.trackEvent('extension_installed');
+      if (analyticsManager && analyticsManager.trackEvent) {
+        await analyticsManager.trackEvent('extension_installed');
+      }
       chrome.runtime.openOptionsPage();
+      // Update rules in background (non-blocking)
+      if (typeof updateRules === 'function') {
+        updateRules().catch(error => {
+          console.error('Failed to update rules on install:', error);
+        });
+      }
     } else if (details.reason === 'update') {
       // Update - ensure rules are current
-      await analyticsManager.trackEvent('extension_updated');
-      await updateRules();
+      if (analyticsManager && analyticsManager.trackEvent) {
+        await analyticsManager.trackEvent('extension_updated');
+      }
+      // Update rules in background (non-blocking)
+      if (typeof updateRules === 'function') {
+        updateRules().catch(error => {
+          console.error('Failed to update rules on update:', error);
+        });
+      }
     }
-    // Normal startup
-    await updateRules();
   } catch (error) {
     console.error('Error during extension installation:', error);
-    await reportError('Installation error', error);
   }
 });
 
@@ -37,7 +99,9 @@ chrome.runtime.onInstalled.addListener(async (details) => {
 chrome.storage.onChanged.addListener(async (changes, areaName) => {
   try {
     if (areaName === 'local' && 'config' in changes) {
-      await updateRules();
+      if (typeof updateRules === 'function') {
+        await updateRules();
+      }
     }
   } catch (error) {
     console.error('Error handling storage changes:', error);
@@ -49,6 +113,12 @@ chrome.storage.onChanged.addListener(async (changes, areaName) => {
  */
 async function updateRules() {
   try {
+    // Check if required modules are initialized
+    if (!storageManager || !rulesEngine || !cacheManager) {
+      console.error('Required modules not initialized for rule update');
+      return;
+    }
+    
     const config = await withRetry(() => storageManager.getConfig(), 3);
     
     // Check cache first
@@ -114,25 +184,48 @@ async function applyRules(rules) {
 }
 
 // Check and update rules periodically (every minute)
-setInterval(updateRules, 60000);
+// Delay initial execution to allow modules to initialize
+if (typeof updateRules === 'function') {
+  setTimeout(() => {
+    setInterval(() => {
+      if (typeof updateRules === 'function') {
+        updateRules().catch(error => {
+          console.error('Error in periodic rule update:', error);
+        });
+      }
+    }, 60000);
+  }, 5000); // 5 second delay before first check
+}
 
 /**
  * Handle messages from popup and content scripts with validation
  */
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // Validate sender
-  if (!SecurityHelper.isValidMessageSender(sender)) {
-    sendResponse({ success: false, error: 'Invalid sender' });
-    return true;
+  try {
+    // Check if modules are initialized
+    if (!storageManager || !rulesEngine || !analyticsManager) {
+      console.error('One or more modules not initialized');
+      sendResponse({ success: false, error: 'Extension not fully initialized' });
+      return true;
+    }
+    
+    // Validate sender
+    if (SecurityHelper && !SecurityHelper.isValidMessageSender(sender)) {
+      sendResponse({ success: false, error: 'Invalid sender' });
+      return true;
+    }
+    
+    // Rate limiting (if available)
+    if (messageRateLimiter && !messageRateLimiter.check('message_' + sender.url)) {
+      sendResponse({ success: false, error: 'Rate limited' });
+      return true;
+    }
+    
+    handleMessage(message, sender, sendResponse);
+  } catch (error) {
+    console.error('Error in message listener:', error);
+    sendResponse({ success: false, error: 'Message listener error: ' + error.message });
   }
-  
-  // Rate limiting
-  if (!messageRateLimiter.check('message_' + sender.url)) {
-    sendResponse({ success: false, error: 'Rate limited' });
-    return true;
-  }
-  
-  handleMessage(message, sender, sendResponse);
   return true; // Keep channel open for async response
 });
 
@@ -198,10 +291,30 @@ async function handleMessage(message, sender, sendResponse) {
 
 async function handleGetConfig(sendResponse) {
   try {
+    // Verify storageManager is available
+    if (!storageManager) {
+      console.error('StorageManager not initialized');
+      sendResponse({ success: false, error: 'StorageManager not available' });
+      return;
+    }
+    
     const config = await storageManager.getConfig();
+    if (!config) {
+      console.error('Config is null or undefined');
+      sendResponse({ success: true, config: storageManager.getDefaultConfig() });
+      return;
+    }
+    
     sendResponse({ success: true, config });
   } catch (error) {
-    sendResponse({ success: false, error: error.message });
+    console.error('Error in handleGetConfig:', error);
+    // Return default config on error for better UX
+    try {
+      const defaultConfig = storageManager.getDefaultConfig();
+      sendResponse({ success: true, config: defaultConfig });
+    } catch (fallbackError) {
+      sendResponse({ success: false, error: error.message || 'Failed to load configuration' });
+    }
   }
 }
 
@@ -340,11 +453,15 @@ async function withRetry(operation, maxRetries = 3) {
  */
 async function reportError(context, error) {
   try {
-    await analyticsManager.trackEvent('error', {
-      context: context,
-      message: error.message,
-      stack: error.stack
-    });
+    if (analyticsManager && analyticsManager.trackEvent) {
+      await analyticsManager.trackEvent('error', {
+        context: context,
+        message: error.message,
+        stack: error.stack
+      });
+    } else {
+      console.error('AnalyticsManager not available to report error');
+    }
   } catch (e) {
     console.error('Failed to report error:', e);
   }

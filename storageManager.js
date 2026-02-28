@@ -10,15 +10,23 @@ class StorageManager {
    */
   async getConfig() {
     try {
-      return new Promise((resolve, reject) => {
-        chrome.storage.local.get('config', (result) => {
-          if (chrome.runtime.lastError) {
-            reject(new Error('Storage access error: ' + chrome.runtime.lastError.message));
-          } else {
-            const config = result.config || this.getDefaultConfig();
-            resolve(config);
-          }
-        });
+      return await new Promise((resolve, reject) => {
+        try {
+          chrome.storage.local.get('config', (result) => {
+            try {
+              if (chrome.runtime.lastError) {
+                reject(new Error('Storage access error: ' + chrome.runtime.lastError.message));
+              } else {
+                const config = result.config || this.getDefaultConfig();
+                resolve(config);
+              }
+            } catch (innerError) {
+              reject(innerError);
+            }
+          });
+        } catch (setupError) {
+          reject(setupError);
+        }
       });
     } catch (error) {
       console.error('Error getting config:', error);
@@ -45,9 +53,9 @@ class StorageManager {
           if (chrome.runtime.lastError) {
             reject(new Error('Failed to save config: ' + chrome.runtime.lastError.message));
           } else {
-            // Clear rules cache when config changes
-            if (window.cacheManager) {
-              window.cacheManager.delete('generated_rules');
+            // Clear rules cache when config changes (works in service worker context)
+            if (typeof cacheManager !== 'undefined') {
+              cacheManager.delete('generated_rules');
             }
             resolve();
           }
@@ -392,9 +400,9 @@ class StorageManager {
           if (chrome.runtime.lastError) {
             reject(new Error('Failed to reset: ' + chrome.runtime.lastError.message));
           } else {
-            // Clear cache as well
-            if (window.cacheManager) {
-              window.cacheManager.clear();
+            // Clear cache as well (only in service worker context where cacheManager is available)
+            if (typeof cacheManager !== 'undefined') {
+              cacheManager.clear();
             }
             resolve();
           }

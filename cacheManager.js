@@ -116,6 +116,3 @@ class CacheManager {
     return value;
   }
 }
-
-// Create singleton instance
-const cacheManager = new CacheManager();
