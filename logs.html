@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Activity Logs - Parental Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+        
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+        
+        header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .controls h3 {
+            margin: 0;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+        
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+        
+        .log-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .log-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .log-table thead {
+            background: #f8f9fa;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .log-table th {
+            padding: 15px;
+            text-align: left;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        .log-table tbody tr {
+            border-bottom: 1px solid #eee;
+            transition: background 0.2s;
+        }
+        
+        .log-table tbody tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .log-table td {
+            padding: 15px;
+            font-size: 14px;
+        }
+        
+        .log-table td:nth-child(1) {
+            font-weight: 500;
+            color: #667eea;
+            word-break: break-all;
+        }
+        
+        .log-table td:nth-child(2) {
+            color: #999;
+            font-size: 13px;
+        }
+        
+        .log-table td:nth-child(3) {
+            font-size: 13px;
+        }
+        
+        .reason-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .reason-domain {
+            background: #dae8f4;
+            color: #004085;
+        }
+        
+        .reason-keyword {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .reason-time {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+        
+        .reason-other {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .message {
+            padding: 12px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+            display: none;
+        }
+        
+        .message.show {
+            display: block;
+        }
+        
+        .message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        
+        .message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state h3 {
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+        
+        .empty-state p {
+            font-size: 14px;
+            margin-bottom: 20px;
+        }
+        
+        .filter-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .filter-group label {
+            display: flex;
+            align-items: center;
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .filter-group input {
+            margin-right: 6px;
+            cursor: pointer;
+        }
+        
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .stat-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #667eea;
+            margin-bottom: 8px;
+        }
+        
+        .stat-label {
+            font-size: 13px;
+            color: #666;
+        }
+        
+        .actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Activity Logs</h1>
+            <p>View all blocked attempts and access restrictions</p>
+        </header>
+        
+        <div class="message info" id="infoMessage"></div>
+        <div class="message success" id="successMessage"></div>
+        
+        <div class="stats" id="statsContainer"></div>
+        
+        <div class="actions">
+            <button class="btn-secondary" id="backBtn">← Back to Settings</button>
+            <button class="btn-danger" id="clearLogsBtn">Clear All Logs</button>
+            <button class="btn-primary" id="exportBtn">Export Logs</button>
+        </div>
+        
+        <div class="controls">
+            <h3>Logs</h3>
+            <div class="filter-group" id="filterGroup"></div>
+        </div>
+        
+        <div class="log-container">
+            <div id="logsContent"></div>
+        </div>
+    </div>
+    
+    <script>
+        let allLogs = [];
+        let filteredLogs = [];
+        let config = null;
+        
+        document.addEventListener('DOMContentLoaded', initializeLogs);
+        
+        async function initializeLogs() {
+            try {
+                // Get configuration and logs
+                const configResponse = await sendMessage({ type: 'getConfig' });
+                config = configResponse.config;
+                
+                const logs = await getLogs();
+                allLogs = logs;
+                filteredLogs = [...allLogs];
+                
+                if (!config.logging.enabled) {
+                    document.getElementById('infoMessage').textContent = 
+                        '⚠️ Logging is not enabled. Enable logging in settings to track blocked attempts.';
+                    document.getElementById('infoMessage').classList.add('show');
+                }
+                
+                renderLogs();
+                renderStats();
+                setupEventListeners();
+            } catch (error) {
+                console.error('Error initializing logs:', error);
+            }
+        }
+        
+        function renderStats() {
+            if (allLogs.length === 0) {
+                document.getElementById('statsContainer').innerHTML = '';
+                return;
+            }
+            
+            const stats = {
+                totalBlocked: allLogs.length,
+                blockedDomains: 0,
+                contentFiltered: 0,
+                timeRestricted: 0
+            };
+            
+            allLogs.forEach(log => {
+                if (log.reason === 'blocked_domain') stats.blockedDomains++;
+                else if (log.reason === 'keyword_filtered') stats.contentFiltered++;
+                else if (log.reason === 'restricted_hour') stats.timeRestricted++;
+            });
+            
+            const html = `
+                <div class="stat-card">
+                    <div class="stat-value">${stats.totalBlocked}</div>
+                    <div class="stat-label">Total Blocked</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.blockedDomains}</div>
+                    <div class="stat-label">Blocked Domains</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.contentFiltered}</div>
+                    <div class="stat-label">Content Filtered</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.timeRestricted}</div>
+                    <div class="stat-label">Time Restricted</div>
+                </div>
+            `;
+            
+            document.getElementById('statsContainer').innerHTML = html;
+        }
+        
+        function renderLogs() {
+            const container = document.getElementById('logsContent');
+            
+            if (filteredLogs.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <h3>No logs yet</h3>
+                        <p>Blocked attempts will appear here when logging is enabled.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const html = `
+                <table class="log-table">
+                    <thead>
+                        <tr>
+                            <th>Blocked URL</th>
+                            <th>Time</th>
+                            <th>Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${filteredLogs.map(log => {
+                            const url = new URL(log.url, 'http://localhost').hostname || log.url;
+                            const date = new Date(log.timestamp);
+                            const timeStr = date.toLocaleString();
+                            const reasonBadge = getBadgeClass(log.reason);
+                            const reasonText = getReasonText(log.reason);
+                            
+                            return `
+                                <tr>
+                                    <td>${escapeHtml(url)}</td>
+                                    <td>${timeStr}</td>
+                                    <td><span class="reason-badge ${reasonBadge}">${reasonText}</span></td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        function setupEventListeners() {
+            document.getElementById('backBtn').addEventListener('click', () => {
+                chrome.runtime.openOptionsPage();
+                window.close();
+            });
+            
+            document.getElementById('clearLogsBtn').addEventListener('click', clearLogs);
+            document.getElementById('exportBtn').addEventListener('click', exportLogs);
+        }
+        
+        async function clearLogs() {
+            if (confirm('Are you sure you want to delete all logs? This cannot be undone.')) {
+                chrome.storage.local.set({ logs: [] }, () => {
+                    allLogs = [];
+                    filteredLogs = [];
+                    renderLogs();
+                    renderStats();
+                    showSuccess('All logs cleared');
+                });
+            }
+        }
+        
+        function exportLogs() {
+            const csv = 'URL,Timestamp,Reason\n' + 
+                filteredLogs.map(log => 
+                    `"${log.url}","${log.timestamp}","${log.reason}"`
+                ).join('\n');
+            
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `parental-control-logs-${new Date().toISOString().split('T')[0]}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+        
+        function getLogs() {
+            return new Promise(resolve => {
+                chrome.storage.local.get('logs', (result) => {
+                    resolve(result.logs || []);
+                });
+            });
+        }
+        
+        function sendMessage(message) {
+            return new Promise((resolve) => {
+                chrome.runtime.sendMessage(message, (response) => {
+                    resolve(response || { success: false });
+                });
+            });
+        }
+        
+        function getBadgeClass(reason) {
+            const classes = {
+                'blocked_domain': 'reason-domain',
+                'keyword_filtered': 'reason-keyword',
+                'restricted_hour': 'reason-time'
+            };
+            return classes[reason] || 'reason-other';
+        }
+        
+        function getReasonText(reason) {
+            const texts = {
+                'blocked_domain': 'Blocked Domain',
+                'keyword_filtered': 'Content Filtered',
+                'restricted_hour': 'Time Restricted'
+            };
+            return texts[reason] || 'Other';
+        }
+        
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+        
+        function showSuccess(message) {
+            const el = document.getElementById('successMessage');
+            el.textContent = '✓ ' + message;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 4000);
+        }
+    </script>
+</body>
+</html>

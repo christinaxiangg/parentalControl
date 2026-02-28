@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Access Blocked</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+            text-align: center;
+        }
+        
+        .icon {
+            font-size: 80px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            color: #864ba2;
+            margin-bottom: 12px;
+            font-size: 28px;
+        }
+        
+        .subtitle {
+            color: #666;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        
+        .details {
+            background: #f5f5f5;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            text-align: left;
+        }
+        
+        .detail-item {
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        
+        .detail-item strong {
+            color: #667eea;
+            display: block;
+            margin-bottom: 4px;
+        }
+        
+        .detail-item span {
+            word-break: break-all;
+            color: #666;
+        }
+        
+        .message {
+            margin: 30px 0;
+            padding: 20px;
+            border-radius: 8px;
+            font-size: 15px;
+            line-height: 1.8;
+            color: #555;
+        }
+        
+        .restricted-message {
+            background: #fff3cd;
+            color: #666;
+            border: 1px solid #ffc107;
+        }
+        
+        .filtered-message {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .info {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid #ddd;
+            color: #999;
+            font-size: 13px;
+        }
+        
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #eee;
+            color: #999;
+            font-size: 12px;
+        }
+        
+        .time-info {
+            background: #f0f8ff;
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+            font-size: 14px;
+            color: #336699;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🚫</div>
+        
+        <h1>Access Blocked</h1>
+        
+        <p class="subtitle" id="subtitleText">This website is not accessible right now</p>
+        
+        <div class="details">
+            <div class="detail-item">
+                <strong>Blocked URL</strong>
+                <span id="blockedUrl">Unknown</span>
+            </div>
+            
+            <div class="detail-item">
+                <strong>Time Blocked</strong>
+                <span id="blockedTime">--:--</span>
+            </div>
+            
+            <div class="detail-item" id="reasonItem">
+                <strong>Reason</strong>
+                <span id="reasonText">Domain is blocked</span>
+            </div>
+        </div>
+        
+        <div class="message" id="messageBox">
+            <strong>Why is this site blocked?</strong><br>
+            <p style="margin-top: 10px;">This website has been restricted by parental controls. Please contact your administrator if you believe this is an error.</p>
+        </div>
+        
+        <div class="time-info" id="timeInfo"></div>
+        
+        <div class="info">
+            <p>🔐 This is a protected restriction. You cannot bypass this block.</p>
+        </div>
+        
+        <div class="footer">
+            <p>Parental Control Extension v2.0</p>
+        </div>
+    </div>
+    
+    <script>
+        // Get parameters from URL
+        const params = new URLSearchParams(window.location.search);
+        const reason = params.get('reason') || 'unknown';
+        const domain = params.get('domain');
+        const keyword = params.get('keyword');
+        
+        // Set current time
+        const now = new Date();
+        document.getElementById('blockedTime').textContent = now.toLocaleString();
+        
+        // Set blocked URL
+        const referrer = document.referrer || 'Unknown';
+        document.getElementById('blockedUrl').textContent = referrer || 'Unknown';
+        
+        // Customize message based on reason
+        const messageBox = document.getElementById('messageBox');
+        const subtitleText = document.getElementById('subtitleText');
+        const reasonText = document.getElementById('reasonText');
+        
+        if (reason === 'blocked_domain') {
+            subtitleText.textContent = 'This domain has been blocked by parental controls.';
+            reasonText.textContent = 'Domain: ' + (domain || 'Unknown');
+            messageBox.className = 'message restricted-message';
+            messageBox.innerHTML = '<strong>Domain Blocked</strong><br><p style="margin-top: 10px;">The domain you are trying to access is on the block list and cannot be accessed.</p>';
+        } else if (reason === 'keyword_filtered') {
+            subtitleText.textContent = 'This page contains restricted content.';
+            reasonText.textContent = 'Content Filter: ' + (keyword || 'Inappropriate content detected');
+            messageBox.className = 'message filtered-message';
+            messageBox.innerHTML = '<strong>Content Blocked</strong><br><p style="margin-top: 10px;">The page you tried to access contains content that has been filtered by parental controls.</p>';
+        } else if (reason === 'restricted_hour') {
+            subtitleText.textContent = 'Website access is currently restricted.';
+            reasonText.textContent = 'Restricted Hours';
+            messageBox.className = 'message restricted-message';
+            messageBox.innerHTML = '<strong>Time Restriction</strong><br><p style="margin-top: 10px;">Website access is not allowed during the current restricted hours. Please try again later.</p>';
+            
+            // Show time info
+            const timeInfo = document.getElementById('timeInfo');
+            timeInfo.innerHTML = '⏰ <strong>Restricted Hours Active</strong><br>Website access will be available after the restricted period ends.';
+        }
+        
+        // Log the blocked attempt
+        chrome.runtime.sendMessage({
+            type: 'logBlockedAttempt',
+            url: referrer,
+            reason: reason
+        });
+        
+        // Disable going back
+        window.history.forward();
+        setTimeout(() => {
+            if (window.history.length > 0) {
+                window.location.href = 'about:blank';
+            }
+        }, 100);
+    </script>
+</body>
+</html>
