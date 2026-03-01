@@ -85,15 +85,37 @@ class RulesEngine {
     
     const blockedDomains = [];
     
+    // FIX: Properly exclude always-allowed domains from blocking
+    // Create Set of always-allowed domains for efficient lookup
+    const alwaysAllowed = new Set();
+    if (config.alwaysAllowedList && config.alwaysAllowedList.length > 0) {
+      config.alwaysAllowedList.forEach(domain => alwaysAllowed.add(domain.toLowerCase()));
+    }
+    
     if (mode === 'restricted') {
-      // In restricted mode: block everything except Always Allowed list
+      // In restricted mode: block all domains in block list EXCEPT those in always-allowed list
       if (config.blockList && config.blockList.length > 0) {
-        blockedDomains.push(...config.blockList);
+        config.blockList.forEach(domain => {
+          const lowerDomain = domain.toLowerCase();
+          if (!alwaysAllowed.has(lowerDomain)) {
+            blockedDomains.push(domain);
+          } else {
+            console.log(`[RulesEngine] Domain '${domain}' is in always-allowed list, not blocking during restricted mode`);
+          }
+        });
       }
     } else {
-      // In allowed mode: block items in block list
+      // In allowed mode: block items in block list (they can still override allowed domains)
+      // Also respect always-allowed list as an additional whitelist
       if (config.blockList && config.blockList.length > 0) {
-        blockedDomains.push(...config.blockList);
+        config.blockList.forEach(domain => {
+          const lowerDomain = domain.toLowerCase();
+          if (!alwaysAllowed.has(lowerDomain)) {
+            blockedDomains.push(domain);
+          } else {
+            console.log(`[RulesEngine] Domain '${domain}' is in always-allowed list, not blocking during allowed mode`);
+          }
+        });
       }
     }
     

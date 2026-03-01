@@ -3,11 +3,18 @@ document.addEventListener('DOMContentLoaded', initializePopup);
 
 async function initializePopup() {
   try {
+    console.log('Initializing popup...');
     const content = document.getElementById('content');
+    if (!content) {
+      console.error('Content div not found');
+      return;
+    }
     
     // Get current configuration
     const message = { type: 'getConfig' };
+    console.log('Sending getConfig message...');
     const response = await sendMessage(message);
+    console.log('Got response:', response);
     
     if (!response.success) {
       console.error('Failed to load configuration:', response.error);
@@ -92,13 +99,23 @@ async function initializePopup() {
     content.innerHTML = html;
     
     // Add event listeners
-    document.getElementById('settingsBtn').addEventListener('click', () => {
-      chrome.runtime.openOptionsPage();
-    });
+    const settingsBtn = document.getElementById('settingsBtn');
+    if (settingsBtn) {
+      settingsBtn.addEventListener('click', () => {
+        chrome.runtime.openOptionsPage();
+      });
+    } else {
+      console.warn('Settings button not found');
+    }
     
-    document.getElementById('viewLogsBtn').addEventListener('click', () => {
-      chrome.tabs.create({ url: chrome.runtime.getURL('logs.html') });
-    });
+    const viewLogsBtn = document.getElementById('viewLogsBtn');
+    if (viewLogsBtn) {
+      viewLogsBtn.addEventListener('click', () => {
+        chrome.tabs.create({ url: chrome.runtime.getURL('logs.html') });
+      });
+    } else {
+      console.warn('View logs button not found');
+    }
     
   } catch (error) {
     console.error('Error initializing popup:', error);
@@ -112,14 +129,19 @@ async function initializePopup() {
  */
 function sendMessage(message) {
   return new Promise((resolve) => {
+    console.log('sendMessage:', message);
+    
     // 5 second timeout to prevent hanging
     const timeoutId = setTimeout(() => {
+      console.error('Message timeout for:', message.type);
       resolve({ success: false, error: 'Message timeout - extension may not be ready' });
     }, 5000);
     
     chrome.runtime.sendMessage(message, (response) => {
       clearTimeout(timeoutId);
+      console.log('Message response for', message.type, ':', response);
       if (chrome.runtime.lastError) {
+        console.error('Chrome runtime error:', chrome.runtime.lastError);
         resolve({ success: false, error: chrome.runtime.lastError.message });
       } else {
         resolve(response || { success: false, error: 'No response' });

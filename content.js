@@ -1,5 +1,7 @@
-// Content Script - Keyword filtering with error handling
+// Content Script - Keyword filtering with error handling and debounced scanning
 let config = null;
+let debounceTimer = null;
+let observer = null;
 
 // Initialize with error handling
 (async () => {
@@ -32,12 +34,45 @@ let config = null;
       return;
     }
     
-    // Scan page for blocked keywords
+    console.log('[KeywordFilter] Keyword filtering enabled, scanning page');
+    
+    // FIX: Debounce keyword scanning to improve performance
+    // Scan immediately once, then watch for content changes with debouncing
     scanPageForKeywords();
+    setupDebouncedScanning();
   } catch (error) {
     console.error('Content script initialization error:', error);
   }
 })();
+
+/**
+ * Setup debounced scanning for dynamically loaded content
+ */
+function setupDebouncedScanning() {
+  try {
+    // Create MutationObserver to watch for DOM changes
+    observer = new MutationObserver(() => {
+      // Debounce: clear previous timer and set new one
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        console.log('[KeywordFilter] Page content changed, rescanning...');
+        scanPageForKeywords();
+      }, 500); // Wait 500ms after DOM changes stop before scanning
+    });
+    
+    // Watch for changes to body and subtree
+    if (document.body) {
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: false // Ignore text changes, only child additions/removals
+      });
+      console.log('[KeywordFilter] MutationObserver started, watching for content changes');
+    }
+  } catch (error) {
+    console.error('[KeywordFilter] Error setting up debounced scanning:', error);
+  }
+}
 
 /**
  * Scan page for blocked keywords
@@ -68,10 +103,13 @@ function scanPageForKeywords() {
       const regex = new RegExp('\\b' + keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'i');
       
       if (regex.test(pageText)) {
+        console.log(`[KeywordFilter] Blocked keyword found: '${keyword}'`);
         blockPage(keyword);
         return;
       }
     }
+    
+    console.log('[KeywordFilter] No blocked keywords found on page');
   } catch (error) {
     console.error('Error scanning page for keywords:', error);
   }
