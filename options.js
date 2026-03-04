@@ -283,7 +283,7 @@ function renderBlockList() {
       return `
         <div class="list-item">
           <span class="list-item-text">${escapeHtml(domain)}</span>
-          <button class="btn-danger btn-small" onclick="removeDomain(${index})">Remove</button>
+          <button class="btn-danger btn-small remove-domain-btn" data-index="${index}">Remove</button>
         </div>
       `;
     }).join('');
@@ -332,7 +332,7 @@ function renderAlwaysAllowedList() {
     container.innerHTML = currentConfig.alwaysAllowedList.map((domain, index) => `
       <div class="list-item">
         <span class="list-item-text">${escapeHtml(domain)}</span>
-        <button class="btn-danger btn-small" onclick="removeAllowedDomain(${index})">Remove</button>
+        <button class="btn-danger btn-small remove-allowed-domain-btn" data-index="${index}">Remove</button>
       </div>
     `).join('');
     console.log('renderAlwaysAllowedList() completed successfully');
@@ -375,7 +375,7 @@ function renderSchedules() {
           <div class="schedule-info">
             <strong>Days:</strong> ${days}
           </div>
-          <button class="btn-danger btn-small" onclick="removeSchedule(${index})">Remove Schedule</button>
+          <button class="btn-danger btn-small remove-schedule-btn" data-index="${index}">Remove Schedule</button>
         </div>
       `;
     }).join('');
@@ -426,6 +426,20 @@ function addEventListeners() {
       location.reload();
     });
     safeAddListener('resetBtn', 'click', resetAll);
+    
+    // Event delegation for remove buttons (CSP compliant)
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('remove-domain-btn')) {
+        const index = parseInt(e.target.getAttribute('data-index'), 10);
+        removeDomain(index);
+      } else if (e.target.classList.contains('remove-allowed-domain-btn')) {
+        const index = parseInt(e.target.getAttribute('data-index'), 10);
+        removeAllowedDomain(index);
+      } else if (e.target.classList.contains('remove-schedule-btn')) {
+        const index = parseInt(e.target.getAttribute('data-index'), 10);
+        removeSchedule(index);
+      }
+    });
     
   } catch (error) {
     console.error('Error adding event listeners:', error);
@@ -679,6 +693,10 @@ function removeSchedule(index) {
     currentConfig.schedules.splice(index, 1);
     renderSchedules();
     showSuccess('Schedule removed');
+    // Save changes
+    saveConfig().catch(error => {
+      console.warn('Failed to save after removing schedule:', error);
+    });
   }
 }
 
