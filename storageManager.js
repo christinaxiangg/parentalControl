@@ -80,7 +80,7 @@ class StorageManager {
         keywords: []
       },
       logging: {
-        enabled: false,
+        enabled: true,
         maxEntries: 1000
       },
       passwordProtected: true,

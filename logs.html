@@ -274,6 +274,18 @@
             <p>View all blocked attempts and access restrictions</p>
         </header>
         
+        <!-- Password Check Section -->
+        <div class="message" id="passwordCheck" style="background: #fff3cd; color: #856404; border: 1px solid #ffc107; display: none; margin-bottom: 30px;">
+            <strong>🔐 Password Protected</strong><br>
+            <p style="margin: 10px 0;">Please enter the password to access the activity logs.</p>
+            <div style="margin-top: 15px;">
+                <input type="password" id="accessPassword" placeholder="Enter password" style="padding: 8px; border: 1px solid #ddd; border-radius: 4px; width: 100%; margin-bottom: 10px;">
+                <button class="btn-primary" style="width: 100%;" id="unlockBtn">Unlock Logs</button>
+            </div>
+        </div>
+        
+        <div id="logsContent" style="display: none;">
+        
         <div class="message info" id="infoMessage"></div>
         <div class="message success" id="successMessage"></div>
         
@@ -291,7 +303,9 @@
         </div>
         
         <div class="log-container">
-            <div id="logsContent"></div>
+            <div id="logsList"></div>
+        </div>
+        
         </div>
     </div>
     
@@ -300,10 +314,50 @@
         let filteredLogs = [];
         let config = null;
         
+        // Session-based unlock tracking
+        const SESSION_KEY = 'extensionUnlocked';
+        
+        function isSessionUnlocked() {
+          return sessionStorage.getItem(SESSION_KEY) === 'true';
+        }
+        
+        function setSessionUnlocked() {
+          sessionStorage.setItem(SESSION_KEY, 'true');
+        }
+        
+        async function isPasswordSet() {
+          return new Promise(resolve => {
+            chrome.storage.local.get('passwordHash', (result) => {
+              resolve(!!result.passwordHash);
+            });
+          });
+        }
+        
         document.addEventListener('DOMContentLoaded', initializeLogs);
         
         async function initializeLogs() {
             try {
+                // Check if password protection is needed
+                const passwordSet = await isPasswordSet();
+                
+                if (passwordSet && !isSessionUnlocked()) {
+                  // Show password check
+                  document.getElementById('passwordCheck').style.display = 'block';
+                  document.getElementById('logsContent').style.display = 'none';
+                  document.getElementById('unlockBtn').addEventListener('click', verifyAccess);
+                  document.getElementById('accessPassword').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') verifyAccess();
+                  });
+                  return;
+                }
+                
+                // Password not set or already unlocked, load logs
+                if (passwordSet) {
+                  setSessionUnlocked();
+                }
+                document.getElementById('passwordCheck').style.display = 'none';
+                document.getElementById('logsContent').style.display = 'block';
+                
                 // Get configuration and logs
                 const configResponse = await sendMessage({ type: 'getConfig' });
                 config = configResponse.config;
@@ -325,6 +379,49 @@
                 console.error('Error initializing logs:', error);
             }
         }
+        
+        async function verifyAccess() {
+          const password = document.getElementById('accessPassword').value;
+          
+          if (!password) {
+            alert('Please enter a password');
+            return;
+          }
+          
+          try {
+            const response = await sendMessage({
+              type: 'verifyPassword',
+              password: password
+            });
+            
+            if (response.success && response.isValid) {
+              setSessionUnlocked();
+              document.getElementById('passwordCheck').style.display = 'none';
+              document.getElementById('logsContent').style.display = 'block';
+              
+              // Reload logs after unlock
+              const configResponse = await sendMessage({ type: 'getConfig' });
+              config = configResponse.config;
+              
+              const logs = await getLogs();
+              allLogs = logs;
+              filteredLogs = [...allLogs];
+              
+              renderLogs();
+              renderStats();
+              setupEventListeners();
+            } else if (response.rateLimited) {
+              alert('Too many incorrect attempts. Please try again in 5 minutes.');
+              document.getElementById('accessPassword').value = '';
+            } else {
+              alert('Invalid password');
+              document.getElementById('accessPassword').value = '';
+            }
+          } catch (error) {
+            alert('Error verifying password: ' + error.message);
+          }
+        }
+        
         
         function renderStats() {
             if (allLogs.length === 0) {
@@ -368,7 +465,7 @@
         }
         
         function renderLogs() {
-            const container = document.getElementById('logsContent');
+            const container = document.getElementById('logsList');
             
             if (filteredLogs.length === 0) {
                 container.innerHTML = `

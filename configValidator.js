@@ -169,7 +169,11 @@ class ConfigValidator {
       return false;
     }
     
-    return true;
+    // Require at least one letter and one number
+    const hasLetter = /[a-zA-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    
+    return hasLetter && hasNumber;
   }
   
   /**
@@ -202,7 +206,7 @@ class ConfigValidator {
     const messages = {
       'invalid_domain': 'Domain format is invalid. Use format like example.com',
       'invalid_time': 'Time must be in HH:MM format (24-hour)',
-      'invalid_password': 'Password must be 4-128 characters',
+      'invalid_password': 'Password must be 4-128 characters with at least one letter and number (e.g., abc123)',
       'duplicate_domain': 'This domain is already in the list',
       'no_days_selected': 'Please select at least one day of the week'
     };

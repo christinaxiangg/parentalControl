@@ -2,22 +2,53 @@
 let currentConfig = null;
 let isUnlocked = false;
 
+// Session-based unlock tracking (persists during session, clears when tab closes)
+const SESSION_KEY = 'extensionUnlocked';
+
+function isSessionUnlocked() {
+  return sessionStorage.getItem(SESSION_KEY) === 'true';
+}
+
+function setSessionUnlocked() {
+  sessionStorage.setItem(SESSION_KEY, 'true');
+}
+
+function clearSessionUnlock() {
+  sessionStorage.removeItem(SESSION_KEY);
+}
+
 document.addEventListener('DOMContentLoaded', initializeOptions);
 
 async function initializeOptions() {
   try {
     console.log('initializeOptions called');
+    
+    // Check if already unlocked in this session
+    if (isSessionUnlocked()) {
+      console.log('Session already unlocked, loading configuration');
+      isUnlocked = true;
+      const settingsContent = document.getElementById('settingsContent');
+      if (settingsContent) {
+        settingsContent.classList.remove('hidden');
+      }
+      await loadConfiguration();
+      addEventListeners();
+      console.log('initializeOptions completed successfully');
+      return;
+    }
+    
     // Check if password is set
     const passwordSet = await isPasswordSet();
     console.log('Password set:', passwordSet);
     
-    if (passwordSet && !isUnlocked) {
+    if (passwordSet) {
       console.log('Showing password check');
       showPasswordCheck();
       addPasswordCheckListeners();
     } else {
-      console.log('Unlocking and loading configuration');
+      console.log('No password set, unlocking and loading configuration');
       isUnlocked = true;
+      setSessionUnlocked();
       const settingsContent = document.getElementById('settingsContent');
       if (settingsContent) {
         settingsContent.classList.remove('hidden');
@@ -82,11 +113,15 @@ async function verifyAccess() {
     
     if (response.success && response.isValid) {
       isUnlocked = true;
+      setSessionUnlocked(); // Save unlock state to session
       document.getElementById('passwordCheck').classList.remove('show');
       document.getElementById('settingsContent').classList.remove('hidden');
       await loadConfiguration();
       addEventListeners();
       showSuccess('Access granted');
+    } else if (response.rateLimited) {
+      showError('Too many incorrect attempts. Please try again in 5 minutes.');
+      document.getElementById('accessPassword').value = '';
     } else {
       showError('Invalid password');
       document.getElementById('accessPassword').value = '';
@@ -627,9 +662,18 @@ async function updatePassword() {
     return;
   }
   
-  // Validate password requirements (4-128 characters)
+  // Validate password requirements
   if (newPassword.length < 4 || newPassword.length > 128) {
     showWarning('Password must be 4-128 characters');
+    return;
+  }
+  
+  // Require at least one letter and one number
+  const hasLetter = /[a-zA-Z]/.test(newPassword);
+  const hasNumber = /[0-9]/.test(newPassword);
+  
+  if (!hasLetter || !hasNumber) {
+    showWarning('Password must contain at least one letter and one number (e.g., abc123)');
     return;
   }
   

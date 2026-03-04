@@ -8,6 +8,54 @@ importScripts('analyticsManager.js');
 importScripts('storageManager.js');
 importScripts('rulesEngine.js');
 
+/**
+ * Simple rate limiter for password attempts (prevents kid brute-force)
+ */
+class SimplePasswordLimiter {
+  constructor() {
+    this.maxAttempts = 5;
+    this.lockoutDuration = 5 * 60 * 1000; // 5 minutes
+  }
+  
+  async checkAndRecord(isSuccess) {
+    const key = 'pwdAttempts';
+    return new Promise((resolve) => {
+      chrome.storage.local.get(key, (result) => {
+        let data = result[key] || { count: 0, locked: false, until: 0 };
+        const now = Date.now();
+        
+        // Check if still locked
+        if (data.locked && now < data.until) {
+          resolve({ allowed: false, reason: 'locked' });
+          return;
+        }
+        
+        // Unlock if lockout expired
+        if (data.locked && now >= data.until) {
+          data = { count: 0, locked: false, until: 0 };
+        }
+        
+        if (isSuccess) {
+          // Clear on success
+          chrome.storage.local.remove(key);
+          resolve({ allowed: true });
+        } else {
+          // Increment and possibly lock
+          data.count += 1;
+          if (data.count >= this.maxAttempts) {
+            data.locked = true;
+            data.until = now + this.lockoutDuration;
+          }
+          chrome.storage.local.set({ [key]: data });
+          resolve({ allowed: data.count < this.maxAttempts });
+        }
+      });
+    });
+  }
+}
+
+const passwordLimiter = new SimplePasswordLimiter();
+
 // Initialization state tracking (FIX: Critical fix for race condition)
 let initializationComplete = false;
 let initializationPromise = null;
@@ -595,6 +643,14 @@ async function handleVerifyPassword(message, sendResponse) {
     
     try {
       const isValid = await storageManager.verifyPassword(message.password);
+      
+      // Check rate limiting
+      const rateLimitCheck = await passwordLimiter.checkAndRecord(isValid);
+      if (!rateLimitCheck.allowed) {
+        console.warn('[ErrorBoundary] Password attempts rate limited');
+        sendResponse({ success: true, isValid: false, rateLimited: true });
+        return;
+      }
       
       // Track event if available
       if (typeof analyticsManager !== 'undefined' && analyticsManager.trackPasswordAttempt) {
