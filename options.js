@@ -30,10 +30,11 @@ async function initializeOptions() {
       const settingsContent = document.getElementById('settingsContent');
       if (settingsContent) {
         settingsContent.classList.remove('hidden');
+        console.log('settingsContent unhidden (session)');
       }
       await loadConfiguration();
       addEventListeners();
-      console.log('initializeOptions completed successfully');
+      console.log('initializeOptions completed successfully (session)');
       return;
     }
     
@@ -52,15 +53,19 @@ async function initializeOptions() {
       const settingsContent = document.getElementById('settingsContent');
       if (settingsContent) {
         settingsContent.classList.remove('hidden');
+        console.log('settingsContent unhidden');
       } else {
         console.warn('settingsContent element not found');
       }
+      console.log('About to load configuration...');
       await loadConfiguration();
+      console.log('Configuration loaded, adding event listeners...');
       addEventListeners();
       console.log('initializeOptions completed successfully');
     }
   } catch (error) {
     console.error('Error in initializeOptions:', error);
+    console.error('Error stack:', error.stack);
     showError('Failed to initialize settings: ' + error.message);
   }
 }
@@ -245,33 +250,50 @@ function renderBlockList() {
   try {
     console.log('renderBlockList() called');
     const container = document.getElementById('blockListItems');
+    const blockListContainer = document.getElementById('blockListContainer');
     
     if (!container) {
       console.error('blockListItems container not found');
       return;
     }
     
+    if (!blockListContainer) {
+      console.error('blockListContainer not found');
+      return;
+    }
+
     console.log('Container found:', container);
+    console.log('currentConfig:', currentConfig);
     console.log('currentConfig.blockList:', currentConfig?.blockList);
+    console.log('blockList length:', currentConfig?.blockList?.length);
     
-    if (!currentConfig.blockList || currentConfig.blockList.length === 0) {
+    // Ensure blockListContainer is visible
+    blockListContainer.style.display = 'block';
+    
+    if (!currentConfig || !currentConfig.blockList || currentConfig.blockList.length === 0) {
       console.log('No items in blockList, showing empty message');
       container.innerHTML = '<div class="no-items">No domains blocked</div>';
+      console.log('Empty state rendered');
       return;
     }
     
-    const html = currentConfig.blockList.map((domain, index) => `
-    <div class="list-item">
-      <span class="list-item-text">${escapeHtml(domain)}</span>
-      <button class="btn-danger btn-small" onclick="removeDomain(${index})">Remove</button>
-    </div>
-  `).join('');
+    console.log('Creating HTML for', currentConfig.blockList.length, 'domains');
+    const html = currentConfig.blockList.map((domain, index) => {
+      console.log(`Processing domain ${index}:`, domain);
+      return `
+        <div class="list-item">
+          <span class="list-item-text">${escapeHtml(domain)}</span>
+          <button class="btn-danger btn-small" onclick="removeDomain(${index})">Remove</button>
+        </div>
+      `;
+    }).join('');
     
     console.log('Generated HTML:', html);
     container.innerHTML = html;
     console.log('renderBlockList() completed successfully');
   } catch (error) {
     console.error('Error in renderBlockList:', error);
+    console.error('Error stack:', error.stack);
   }
 }
 
@@ -279,47 +301,89 @@ function renderBlockList() {
  * Render always allowed list
  */
 function renderAlwaysAllowedList() {
-  const container = document.getElementById('alwaysAllowedItems');
-  
-  if (!currentConfig.alwaysAllowedList || currentConfig.alwaysAllowedList.length === 0) {
-    container.innerHTML = '<div class="no-items">No domains in Always Allowed list</div>';
-    return;
+  try {
+    console.log('renderAlwaysAllowedList() called');
+    const container = document.getElementById('alwaysAllowedItems');
+    const alwaysAllowedContainer = document.getElementById('alwaysAllowedContainer');
+    
+    if (!container) {
+      console.error('alwaysAllowedItems container not found');
+      return;
+    }
+    
+    if (!alwaysAllowedContainer) {
+      console.error('alwaysAllowedContainer not found');
+      return;
+    }
+
+    console.log('alwaysAllowedItems container found');
+    console.log('currentConfig.alwaysAllowedList:', currentConfig?.alwaysAllowedList);
+    
+    // Ensure alwaysAllowedContainer is visible
+    alwaysAllowedContainer.style.display = 'block';
+    
+    if (!currentConfig.alwaysAllowedList || currentConfig.alwaysAllowedList.length === 0) {
+      console.log('No items in alwaysAllowedList, showing empty message');
+      container.innerHTML = '<div class="no-items">No domains in Always Allowed list</div>';
+      return;
+    }
+    
+    console.log('Creating HTML for', currentConfig.alwaysAllowedList.length, 'allowed domains');
+    container.innerHTML = currentConfig.alwaysAllowedList.map((domain, index) => `
+      <div class="list-item">
+        <span class="list-item-text">${escapeHtml(domain)}</span>
+        <button class="btn-danger btn-small" onclick="removeAllowedDomain(${index})">Remove</button>
+      </div>
+    `).join('');
+    console.log('renderAlwaysAllowedList() completed successfully');
+  } catch (error) {
+    console.error('Error in renderAlwaysAllowedList:', error);
+    console.error('Error stack:', error.stack);
   }
-  
-  container.innerHTML = currentConfig.alwaysAllowedList.map((domain, index) => `
-    <div class="list-item">
-      <span class="list-item-text">${escapeHtml(domain)}</span>
-      <button class="btn-danger btn-small" onclick="removeAllowedDomain(${index})">Remove</button>
-    </div>
-  `).join('');
 }
 
 /**
  * Render schedules
  */
 function renderSchedules() {
-  const container = document.getElementById('schedulesList');
-  
-  if (!currentConfig.schedules || currentConfig.schedules.length === 0) {
-    container.innerHTML = '<div class="no-items">No schedules configured</div>';
-    return;
-  }
-  
-  container.innerHTML = currentConfig.schedules.map((schedule, index) => {
-    const days = schedule.days && schedule.days.length > 0
-      ? getDayNames(schedule.days).join(', ')
-      : 'Every day';
+  try {
+    console.log('renderSchedules() called');
+    const container = document.getElementById('schedulesList');
     
-    return `
-      <div class="schedule-item">
-        <h4>${schedule.mode.toUpperCase()} Mode: ${schedule.startTime} - ${schedule.endTime}</h4>
-        <div class="schedule-info">
-          <strong>Days:</strong> ${days}
+    if (!container) {
+      console.error('schedulesList container not found');
+      return;
+    }
+    
+    console.log('schedulesList container found');
+    console.log('currentConfig.schedules:', currentConfig?.schedules);
+    
+    if (!currentConfig.schedules || currentConfig.schedules.length === 0) {
+      console.log('No schedules configured');
+      container.innerHTML = '<div class="no-items">No schedules configured</div>';
+      return;
+    }
+  
+    container.innerHTML = currentConfig.schedules.map((schedule, index) => {
+      const days = schedule.days && schedule.days.length > 0
+        ? getDayNames(schedule.days).join(', ')
+        : 'Every day';
+      
+      return `
+        <div class="schedule-item">
+          <h4>${schedule.mode.toUpperCase()} Mode: ${schedule.startTime} - ${schedule.endTime}</h4>
+          <div class="schedule-info">
+            <strong>Days:</strong> ${days}
+          </div>
+          <button class="btn-danger btn-small" onclick="removeSchedule(${index})">Remove Schedule</button>
         </div>
-        <button class="btn-danger btn-small" onclick="removeSchedule(${index})">Remove Schedule</button>
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('');
+    console.log('renderSchedules() completed successfully');
+  } catch (error) {
+    console.error('Error in renderSchedules:', error);
+    console.error('Error stack:', error.stack);
+  }
 }
 
 /**
@@ -362,10 +426,6 @@ function addEventListeners() {
       location.reload();
     });
     safeAddListener('resetBtn', 'click', resetAll);
-    
-    // Export/import buttons
-    safeAddListener('exportBtn', 'click', exportConfiguration);
-    safeAddListener('importBtn', 'change', importConfiguration);
     
   } catch (error) {
     console.error('Error adding event listeners:', error);
@@ -414,8 +474,9 @@ function addDomain() {
       currentConfig.blockList = [];
     }
     
-    // Check for duplicates
-    if (currentConfig.blockList.includes(domain)) {
+    // Check for duplicates - use lower case for comparison
+    const lowerDomainList = currentConfig.blockList.map(d => d.toLowerCase());
+    if (lowerDomainList.includes(domain)) {
       showWarning('Domain already in block list');
       return;
     }
@@ -438,9 +499,9 @@ function addDomain() {
     
     showSuccess('Domain added to block list');
     
-    // FIX #3: Auto-save changes
-    saveAllSettings().catch(error => {
-      console.warn('Failed to auto-save after adding domain:', error);
+    // FIX #3: Direct save without needing other elements
+    saveConfig().catch(error => {
+      console.warn('Failed to save after adding domain:', error);
       showWarning('Domain added but failed to save. Please click "Save All Settings" manually.');
     });
     
@@ -460,6 +521,10 @@ function removeDomain(index) {
     currentConfig.blockList.splice(index, 1);
     renderBlockList();
     showSuccess(`${domain} removed from block list`);
+    // Save changes
+    saveConfig().catch(error => {
+      console.warn('Failed to save after removing domain:', error);
+    });
   }
 }
 
@@ -524,9 +589,9 @@ function addAllowedDomain() {
     renderAlwaysAllowedList();
     showSuccess('Domain added to Always Allowed list');
     
-    // FIX #4: Auto-save changes
-    saveAllSettings().catch(error => {
-      console.warn('Failed to auto-save after adding domain:', error);
+    // FIX #4: Direct save instead of saveAllSettings
+    saveConfig().catch(error => {
+      console.warn('Failed to save after adding domain:', error);
       showWarning('Domain added but failed to save. Please click "Save All Settings" manually.');
     });
     
@@ -546,6 +611,10 @@ function removeAllowedDomain(index) {
     currentConfig.alwaysAllowedList.splice(index, 1);
     renderAlwaysAllowedList();
     showSuccess(`${domain} removed from Always Allowed list`);
+    // Save changes
+    saveConfig().catch(error => {
+      console.warn('Failed to save after removing domain:', error);
+    });
   }
 }
 
@@ -688,6 +757,27 @@ async function updatePassword() {
     showSuccess('Password updated successfully');
   } catch (error) {
     showError('Error updating password: ' + error.message);
+  }
+}
+
+/**
+ * Simple config save without needing to read UI elements
+ */
+async function saveConfig() {
+  try {
+    const response = await sendMessage({
+      type: 'saveConfig',
+      config: currentConfig
+    });
+    
+    if (response.success) {
+      return;
+    } else {
+      throw new Error(response.error || 'Failed to save');
+    }
+  } catch (error) {
+    console.error('Error saving config:', error);
+    throw error;
   }
 }
 
@@ -892,5 +982,13 @@ function showWarning(message) {
  * Escape HTML special characters for safe display
  */
 function escapeHtml(text) {
-  return SecurityHelper.escapeHtml(text);
+  if (!text) return '';
+  const map = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#039;'
+  };
+  return String(text).replace(/[&<>"']/g, m => map[m]);
 }
