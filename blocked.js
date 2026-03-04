@@ -1,5 +1,5 @@
 // Blocked page script
-(function() {
+function initBlockedPage() {
   try {
     // Get parameters from URL
     const params = new URLSearchParams(window.location.search);
@@ -54,14 +54,15 @@
       reason: reason
     });
     
-    // Disable going back
-    window.history.forward();
-    setTimeout(() => {
-      if (window.history.length > 0) {
-        window.location.href = 'about:blank';
-      }
-    }, 100);
   } catch (error) {
     console.error('Error in blocked page script:', error);
   }
-})();
+}
+
+// Wait for DOM to be ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initBlockedPage);
+} else {
+  // DOM is already loaded
+  initBlockedPage();
+}
